@@ -32,7 +32,7 @@ namespace TDSBridge
 
             b.Start();
 
-            Console.WriteLine("Press enter to kill this process...");
+            Console.WriteLine($"Running on port {args[0]}. Press enter to kill this process...");
             Console.ReadLine();
 
             b.Stop();
@@ -93,7 +93,7 @@ namespace TDSBridge
 
         static string FormatDateTime()
         {
-            return DateTime.Now.ToString("yyyyMMdd HH:mm:ss.ffffff");
+            return Environment.NewLine + Environment.NewLine + DateTime.Now.ToString("yyyyMMdd HH:mm:ss.ffffff");
 
         }
 

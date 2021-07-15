@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -33,6 +34,7 @@ namespace TDSBridge.Common
             tOut.Start();
         }
 
+        private static int NextClientId = 0;
         protected virtual void ClientBridgeThread()
         {
             try
@@ -60,7 +62,7 @@ namespace TDSBridge.Common
                     {
                         iReceived = SocketCouple.ClientBridgeSocket.Receive(bBuffer, 0, 0x1000 - Header.TDSHeader.HEADER_SIZE, SocketFlags.None);
                     }
-                    else if(header.PayloadSize > 0)
+                    else if (header.PayloadSize > 0)
                     {
                         //Console.WriteLine("\t{0:N0} bytes package", header.LengthIncludingHeader);
                         SocketCouple.ClientBridgeSocket.Receive(bBuffer, 0, header.PayloadSize, SocketFlags.None);
@@ -79,14 +81,28 @@ namespace TDSBridge.Common
                         tdsMessage = null;
                     }
 
+                    var g = NextClientId++;
+                    using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.OpenOrCreate, FileAccess.Write))
+                    {
+                        fs.Write(bHeader, 0, bHeader.Length);
+                    }
+                    
                     SocketCouple.BridgeSQLSocket.Send(bHeader, bHeader.Length, SocketFlags.None);
 
                     if (header.Type == (HeaderType)23)
                     {
+                        using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.Append, FileAccess.Write))
+                        {
+                            fs.Write(bBuffer, 0, iReceived);
+                        }
                         SocketCouple.BridgeSQLSocket.Send(bBuffer, iReceived, SocketFlags.None);
                     }
                     else
                     {
+                        using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.Append, FileAccess.Write))
+                        {
+                            fs.Write(bBuffer, 0, header.PayloadSize);
+                        }
                         SocketCouple.BridgeSQLSocket.Send(bBuffer, header.PayloadSize, SocketFlags.None);
                     }
 
@@ -103,6 +119,7 @@ namespace TDSBridge.Common
             //Console.WriteLine("Closing InputThread");
         }
 
+        private static int NextBridgeId = 0;
         protected virtual void BridgeSQLThread()
         {
             try
@@ -114,7 +131,14 @@ namespace TDSBridge.Common
                 {
                     Header.TDSHeader header = new Header.TDSHeader(bBuffer);
 
-                    //Console.WriteLine("[OUT][" + header.Type.ToString() + "]{" + iReceived + "}");
+                    var g = NextBridgeId++;
+                    Console.WriteLine($"out: {g}");
+                    using (var fs = new FileStream("server_" + g + "_tds.dat", FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                    {
+                        fs.Write(bBuffer, 0, iReceived);
+                    }
+
+                    Console.WriteLine(Environment.NewLine + Environment.NewLine + "[OUT][" + header.Type.ToString() + "]{" + iReceived + "}");
 
                     SocketCouple.ClientBridgeSocket.Send(bBuffer, iReceived, SocketFlags.None);
                 }
@@ -152,11 +176,11 @@ namespace TDSBridge.Common
             switch (ct)
             {
                 case ConnectionType.ClientBridge:
-                    if(SocketCouple.BridgeSQLSocket.Connected)
+                    if (SocketCouple.BridgeSQLSocket.Connected)
                         SocketCouple.BridgeSQLSocket.Disconnect(false);
                     break;
                 case ConnectionType.BridgeSQL:
-                    if (SocketCouple.ClientBridgeSocket.Connected)                        
+                    if (SocketCouple.ClientBridgeSocket.Connected)
                         SocketCouple.ClientBridgeSocket.Disconnect(false);
                     break;
             }
