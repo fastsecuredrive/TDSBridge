@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -134,7 +132,7 @@ namespace TDSBridge.Common
 
     class NativeSni
     {
-        private const string SNI = "Microsoft.Data.SqlClient.SNI.dll";
+        private const string SNI = "Microsoft.Data.SqlClient.SNI.x64.dll";
         private const int SniOpenTimeOut = -1; // infinite
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
@@ -415,12 +413,33 @@ namespace TDSBridge.Common
         #endregion
 
         #region Additional Methods added as needed.
+        internal static uint SNIWritePacket(SNIHandle pConn, SNIPacket packet, bool sync)
+        {
+            if (sync)
+            {
+                return SNIWriteSyncOverAsync(pConn, packet);
+            }
+            else
+            {
+                return SNIWriteAsyncWrapper(pConn, packet);
+            }
+        }
+
+        internal static unsafe void SNIPacketSetData(SNIPacket packet, byte[] data, int length)
+        {
+            fixed (byte* pin_data = &data[0])
+            {
+                SNIPacketSetData(packet, pin_data, (uint)length);
+            }
+        }
+        public static uint SNIInitialize() => SNIInitialize(IntPtr.Zero);
+
         internal static void SNIPacketAllocate(SafeHandle pConn, IOType IOType, ref IntPtr pPacket)
         {
             pPacket = SNIPacketAllocateWrapper(pConn, IOType);
         }
 
-        internal static unsafe uint SNIOpenSyncEx(ConsumerInfo consumerInfo, string constring, ref IntPtr pConn, byte[] spnBuffer, byte[] instanceName, bool fOverrideCache,
+        public static unsafe uint SNIOpenSyncEx(ConsumerInfo consumerInfo, string constring, ref IntPtr pConn, byte[] spnBuffer, byte[] instanceName, bool fOverrideCache,
                                    bool fSync, int timeout, bool fParallel, SqlConnectionIPAddressPreference ipPreference, SQLDNSInfo cachedDNSInfo)
         {
             fixed (byte* pin_instanceName = &instanceName[0])
@@ -477,6 +496,18 @@ namespace TDSBridge.Common
                 ? Marshal.GetFunctionPointerForDelegate(consumerInfo.writeDelegate)
                 : IntPtr.Zero;
             native_consumerInfo.ConsumerKey = consumerInfo.key;
+        }
+
+        internal static unsafe uint SNIPacketGetData(IntPtr packet, byte[] readBuffer, ref uint dataSize)
+        {
+            return SNIPacketGetDataWrapper(packet, readBuffer, (uint)readBuffer.Length, out dataSize);
+        }
+
+        internal static uint EnableSsl(SNIHandle handle)
+        {
+            // Add SSL (Encryption) SNI provider.
+            uint info = 0 /* validate cert */ | 0 /* 2 use SChannel Cache */ | 0x10 /* ignore channel bindings */;
+            return NativeSni.SNIAddProvider(handle, NativeSni.ProviderEnum.SSL_PROV, ref info);
         }
         #endregion
     }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using TDSBridge.Common.Header;
 using TDSBridge.Common.Packet;
 
@@ -86,8 +87,19 @@ namespace TDSBridge.Common
                     {
                         fs.Write(bHeader, 0, bHeader.Length);
                     }
-                    
-                    SocketCouple.BridgeSQLSocket.Send(bHeader, bHeader.Length, SocketFlags.None);
+
+                    //SocketCouple.SniBridge.Send(bHeader, bHeader.Length);
+                    //SocketCouple.BridgeSQLSocket.Send(bHeader, bHeader.Length, SocketFlags.None);
+
+                    var totalBuffer = new byte[bHeader.Length + (header.Type == (HeaderType) 23
+                        ? iReceived
+                        : header.PayloadSize)];
+                    Array.Copy(bHeader, totalBuffer, bHeader.Length);
+                    Array.Copy(bBuffer, 0, totalBuffer, bHeader.Length, header.Type == (HeaderType)23
+                        ? iReceived
+                        : header.PayloadSize);
+                    SocketCouple.SniBridge.Send(totalBuffer, totalBuffer.Length);
+
 
                     if (header.Type == (HeaderType)23)
                     {
@@ -95,7 +107,9 @@ namespace TDSBridge.Common
                         {
                             fs.Write(bBuffer, 0, iReceived);
                         }
-                        SocketCouple.BridgeSQLSocket.Send(bBuffer, iReceived, SocketFlags.None);
+
+                        //SocketCouple.SniBridge.Send(bBuffer, iReceived);
+                        //SocketCouple.BridgeSQLSocket.Send(bBuffer, iReceived, SocketFlags.None);
                     }
                     else
                     {
@@ -103,7 +117,9 @@ namespace TDSBridge.Common
                         {
                             fs.Write(bBuffer, 0, header.PayloadSize);
                         }
-                        SocketCouple.BridgeSQLSocket.Send(bBuffer, header.PayloadSize, SocketFlags.None);
+
+                        //SocketCouple.SniBridge.Send(bBuffer, header.PayloadSize);
+                        //SocketCouple.BridgeSQLSocket.Send(bBuffer, header.PayloadSize, SocketFlags.None);
                     }
 
                     //sc.OutputSocket.Send(bBuffer, header.LengthIncludingHeader, SocketFlags.None);
@@ -127,8 +143,13 @@ namespace TDSBridge.Common
                 byte[] bBuffer = new byte[4096];
                 int iReceived = 0;
 
-                while ((iReceived = SocketCouple.BridgeSQLSocket.Receive(bBuffer, SocketFlags.None)) > 0)
+                while ((iReceived = SocketCouple.SniBridge.Receive(bBuffer)) > 0 || iReceived == -42)
                 {
+                    if (iReceived == -42)
+                    {
+                        Task.Delay(TimeSpan.FromSeconds(1)).Wait();
+                        continue;
+                    }
                     Header.TDSHeader header = new Header.TDSHeader(bBuffer);
 
                     var g = NextBridgeId++;
@@ -175,11 +196,11 @@ namespace TDSBridge.Common
 
             switch (ct)
             {
-                case ConnectionType.ClientBridge:
-                    if (SocketCouple.BridgeSQLSocket.Connected)
-                        SocketCouple.BridgeSQLSocket.Disconnect(false);
-                    break;
                 case ConnectionType.BridgeSQL:
+                    if (SocketCouple.SniBridge.Connected)
+                        SocketCouple.SniBridge.Disconnect(false);
+                    break;
+                case ConnectionType.ClientBridge:
                     if (SocketCouple.ClientBridgeSocket.Connected)
                         SocketCouple.ClientBridgeSocket.Disconnect(false);
                     break;
