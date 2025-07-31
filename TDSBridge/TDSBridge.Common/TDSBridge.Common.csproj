@@ -61,6 +61,7 @@
   <ItemGroup>
     <Compile Include="BridgeAcceptor.cs" />
     <Compile Include="BridgedConnection.cs" />
+    <Compile Include="DebugConfig.cs" />
     <Compile Include="Header\AllHeader.cs" />
     <Compile Include="Header\TDSHeader.cs" />
     <Compile Include="Header\HeaderType.cs" />

@@ -8,15 +8,23 @@ namespace TDSBridge
 {
     class Program
     {
-        static int iRPC = 0;
+        static bool debugMode = false;
+        
+        public static bool DebugMode => debugMode;
 
         static void Main(string[] args)
         {
-            if (args.Length < 3)
+            if (args.Length < 2)
             {
                 Usage();
                 return;
             }
+
+            // Check for debug flag
+            debugMode = args.Contains("--debug") || args.Contains("-d");
+            
+            // Set the debug mode for the Common library
+            TDSBridge.Common.DebugConfig.DebugMode = debugMode;
 
             // Check if user wants to use LocalDB
             System.Net.IPEndPoint sqlEndpoint = null;
@@ -41,7 +49,15 @@ namespace TDSBridge
 
             b.Start();
 
-            Console.WriteLine($"Running on port {args[0]}. Press enter to kill this process...");
+            if (debugMode)
+            {
+                Console.WriteLine($"Running on port {args[0]} in DEBUG mode. Press enter to kill this process...");
+                Console.WriteLine("Debug mode: All TDS packets and SQL queries will be logged.");
+            }
+            else
+            {
+                Console.WriteLine($"Running on port {args[0]}. Press enter to kill this process...");
+            }
             Console.ReadLine();
 
             b.Stop();
@@ -49,63 +65,86 @@ namespace TDSBridge
 
         static void b_ConnectionClosed(object sender, BridgedConnection bc, ConnectionType ct)
         {
-            Console.WriteLine(FormatDateTime() + "|Connection " + ct + " closed (" + bc.SocketCouple + ")");
+            if (debugMode)
+                Console.WriteLine(FormatDateTime() + "|Connection " + ct + " closed (" + bc.SocketCouple + ")");
         }
 
         static void b_ConnectionAccepted(object sender, System.Net.Sockets.Socket sAccepted)
         {
-            Console.WriteLine(FormatDateTime() + "|New connection from " + sAccepted.RemoteEndPoint);
+            if (debugMode)
+                Console.WriteLine(FormatDateTime() + "|New connection from " + sAccepted.RemoteEndPoint);
+            else
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] New connection from {sAccepted.RemoteEndPoint}");
         }
 
         static void b_BridgeException(object sender, BridgedConnection bc, ConnectionType ct, Exception exce)
         {
+            // Always show exceptions regardless of debug mode
             Console.WriteLine(FormatDateTime() + "|Bridge Exception (" + ct + "): " + exce.ToString());
         }
 
         static void b_ListeningThreadException(object sender, System.Net.Sockets.Socket sListening, Exception exce)
         {
+            // Always show exceptions regardless of debug mode
             Console.WriteLine(FormatDateTime() + "|Listening Thread Exception: " + exce.ToString());
         }
 
         static void b_TDSPacketReceived(object sender, BridgedConnection bc, Common.Packet.TDSPacket packet)
         {
-            Console.WriteLine(FormatDateTime() + "|" + packet);
+            if (debugMode)
+                Console.WriteLine(FormatDateTime() + "|" + packet);
         }
 
         static void b_TDSMessageReceived(object sender, BridgedConnection bc, Common.Message.TDSMessage msg)
         {
-            Console.WriteLine(FormatDateTime() + "|" + msg);
-            if (msg is Common.Message.SQLBatchMessage)
+            if (debugMode)
             {
-                Console.Write("\tSQLBatch message ");
-                Common.Message.SQLBatchMessage b = (Common.Message.SQLBatchMessage)msg;
-                string strBatchText = b.GetBatchText();
-                Console.Write("({0:N0} chars worth of {1:N0} bytes of data)[", strBatchText.Length, strBatchText.Length * 2);
-                Console.Write(strBatchText);
-                Console.WriteLine("]");
-            }
-            else if (msg is Common.Message.RPCRequestMessage)
-            {
-                try
+                Console.WriteLine(FormatDateTime() + "|" + msg);
+                if (msg is Common.Message.SQLBatchMessage)
                 {
-                    Common.Message.RPCRequestMessage rpc = (Common.Message.RPCRequestMessage)msg;
-                    byte[] bPayload = rpc.AssemblePayload();
-
-                    #if DEBUG
-                    //using (System.IO.FileStream fs = new System.IO.FileStream(
-                    //    "C:\\temp\\dev\\" + (iRPC++) + ".raw",
-                    //    System.IO.FileMode.Create,
-                    //    System.IO.FileAccess.Write,
-                    //    System.IO.FileShare.Read))
-                    //{
-                    //    fs.Write(bPayload, 0, bPayload.Length);
-                    //}
-                    #endif
-
+                    Console.Write("\tSQLBatch message ");
+                    Common.Message.SQLBatchMessage b = (Common.Message.SQLBatchMessage)msg;
+                    string strBatchText = b.GetBatchText();
+                    Console.Write("({0:N0} chars worth of {1:N0} bytes of data)[", strBatchText.Length, strBatchText.Length * 2);
+                    Console.Write(strBatchText);
+                    Console.WriteLine("]");
                 }
-                catch (Exception exce)
+                else if (msg is Common.Message.RPCRequestMessage)
                 {
-                    Console.WriteLine("Exception: " + exce.ToString());
+                    try
+                    {
+                        Common.Message.RPCRequestMessage rpc = (Common.Message.RPCRequestMessage)msg;
+                        byte[] bPayload = rpc.AssemblePayload();
+
+                        #if DEBUG
+                        //using (System.IO.FileStream fs = new System.IO.FileStream(
+                        //    "C:\\temp\\dev\\" + (iRPC++) + ".raw",
+                        //    System.IO.FileMode.Create,
+                        //    System.IO.FileAccess.Write,
+                        //    System.IO.FileShare.Read))
+                        //{
+                        //    fs.Write(bPayload, 0, bPayload.Length);
+                        //}
+                        #endif
+
+                    }
+                    catch (Exception exce)
+                    {
+                        Console.WriteLine("Exception: " + exce.ToString());
+                    }
+                }
+            }
+            else
+            {
+                // In non-debug mode, only show SQL queries for transparency
+                if (msg is Common.Message.SQLBatchMessage)
+                {
+                    Common.Message.SQLBatchMessage sqlMsg = (Common.Message.SQLBatchMessage)msg;
+                    string sqlText = sqlMsg.GetBatchText().Trim();
+                    if (!string.IsNullOrEmpty(sqlText))
+                    {
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] SQL: {sqlText}");
+                    }
                 }
             }
         }

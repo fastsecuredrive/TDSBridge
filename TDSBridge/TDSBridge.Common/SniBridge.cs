@@ -33,7 +33,7 @@ namespace TDSBridge.Common
 
             lock (_operationLock)
             {
-                Console.WriteLine($"Attempting to connect to: {serverName}");
+                // Removed debug output for cleaner production logging
                 
                 try
                 {
@@ -51,13 +51,12 @@ namespace TDSBridge.Common
                         false,
                         SqlConnectionIPAddressPreference.IPv4First,
                         null);
-                    Console.WriteLine($"Successfully connected to: {serverName}");
-                    Console.WriteLine($"Got back instance name: {Encoding.ASCII.GetString(instanceName)}");
+                    // Removed debug output for cleaner production logging
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Failed to connect to {serverName}: {ex.Message}");
-                    Console.WriteLine($"Exception details: {ex}");
+                    // Exception details only shown in debug mode (handled in Program.cs)
                     throw;
                 }
                 //NativeSni.EnableSsl(_nativeSni);
@@ -72,13 +71,13 @@ namespace TDSBridge.Common
 
             //lock (_operationLock)
             {
-                Console.WriteLine($"Sending {inputLength} bytes");
+                // Removed debug output for cleaner production logging
                 var packet = new SNIPacket(_nativeSni);
                 if (IntPtr.Zero == packet.DangerousGetHandle())
                     throw new Exception("Dangerous packet returned zero...?");
                 NativeSni.SNIPacketSetData(packet, inputBuffer, inputLength);
                 var writeResult = NativeSni.SNIWritePacket(_nativeSni, packet, true);
-                Console.WriteLine($"Wrote {inputLength} bytes with result {writeResult}");
+                // Removed debug output for cleaner production logging
             }
         }
 
@@ -97,7 +96,7 @@ namespace TDSBridge.Common
             {
                 IntPtr readPacketPtr = IntPtr.Zero;
                 var error = NativeSni.SNIReadSyncOverAsync(_nativeSni, ref readPacketPtr, 250);
-                Console.WriteLine($"Received bytes with error {error}");
+                // Removed debug output for cleaner production logging
                 //if (error == 997) return -42; /* Operation in progress */
                 //if (error == 233) return -42; /* No process on the other end of the pipe. */
                 //if (error != 0) throw new Exception("SNIReadAsync threw error " + error);
@@ -107,7 +106,7 @@ namespace TDSBridge.Common
                 }
                 else
                 {
-                    Console.WriteLine("ReadAsync returned code " + error);
+                    // Removed debug output for cleaner production logging
                     if (error == 258) return -42;
                 }
 
@@ -119,7 +118,7 @@ namespace TDSBridge.Common
                 uint dataSize = default;
                 error = NativeSni.SNIPacketGetData(readPacketPtr, outputBuffer, ref dataSize);
                 if (error != 0) throw new Exception("SNIPacketGetData threw error " + error);
-                Console.WriteLine($"Turns out there were {dataSize} bytes.");
+                // Removed debug output for cleaner production logging
                 NativeSni.SNIPacketRelease(readPacketPtr);
                 return (int)dataSize;
             }

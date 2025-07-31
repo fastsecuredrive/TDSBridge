@@ -83,9 +83,12 @@ namespace TDSBridge.Common
                     }
 
                     var g = NextClientId++;
-                    using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.OpenOrCreate, FileAccess.Write))
+                    if (DebugConfig.DebugMode)
                     {
-                        fs.Write(bHeader, 0, bHeader.Length);
+                        using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.OpenOrCreate, FileAccess.Write))
+                        {
+                            fs.Write(bHeader, 0, bHeader.Length);
+                        }
                     }
 
                     //SocketCouple.SniBridge.Send(bHeader, bHeader.Length);
@@ -103,9 +106,12 @@ namespace TDSBridge.Common
 
                     if (header.Type == (HeaderType)23)
                     {
-                        using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.Append, FileAccess.Write))
+                        if (DebugConfig.DebugMode)
                         {
-                            fs.Write(bBuffer, 0, iReceived);
+                            using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.Append, FileAccess.Write))
+                            {
+                                fs.Write(bBuffer, 0, iReceived);
+                            }
                         }
 
                         //SocketCouple.SniBridge.Send(bBuffer, iReceived);
@@ -113,9 +119,12 @@ namespace TDSBridge.Common
                     }
                     else
                     {
-                        using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.Append, FileAccess.Write))
+                        if (DebugConfig.DebugMode)
                         {
-                            fs.Write(bBuffer, 0, header.PayloadSize);
+                            using (var fs = new FileStream("client_" + g + "_tds.dat", FileMode.Append, FileAccess.Write))
+                            {
+                                fs.Write(bBuffer, 0, header.PayloadSize);
+                            }
                         }
 
                         //SocketCouple.SniBridge.Send(bBuffer, header.PayloadSize);
@@ -153,13 +162,15 @@ namespace TDSBridge.Common
                     Header.TDSHeader header = new Header.TDSHeader(bBuffer);
 
                     var g = NextBridgeId++;
-                    Console.WriteLine($"out: {g}");
-                    using (var fs = new FileStream("server_" + g + "_tds.dat", FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                    if (DebugConfig.DebugMode)
                     {
-                        fs.Write(bBuffer, 0, iReceived);
+                        Console.WriteLine($"out: {g}");
+                        using (var fs = new FileStream("server_" + g + "_tds.dat", FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                        {
+                            fs.Write(bBuffer, 0, iReceived);
+                        }
+                        Console.WriteLine(Environment.NewLine + Environment.NewLine + "[OUT][" + header.Type.ToString() + "]{" + iReceived + "}");
                     }
-
-                    Console.WriteLine(Environment.NewLine + Environment.NewLine + "[OUT][" + header.Type.ToString() + "]{" + iReceived + "}");
 
                     SocketCouple.ClientBridgeSocket.Send(bBuffer, iReceived, SocketFlags.None);
                 }

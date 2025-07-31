@@ -27,3 +27,19 @@ The resulting connections could be like this diagram:
 If you need to parse the output you can redirect it to a file (as you will see, SSMS intellisense will bloat your window :) ).
 
 Please feel free to use it in your demo/classes and if you need any help don't hesitate to contact me.
+
+## LocalDB Support
+
+TDSBridge now supports transparent bridging to SQL Server LocalDB, making it perfect for development and testing scenarios where you want to use LocalDB instead of SQL Server Express.
+
+### Usage with LocalDB:
+
+```bash
+# Start TDSBridge to bridge to LocalDB
+.\TDSBridge.exe 1533 localdb dummy
+
+# Configure your application to connect to localhost:1533
+# The bridge will transparently forward all requests to (localdb)\MSSQLLocalDB
+```
+
+This allows applications designed for SQL Server Express to seamlessly work with LocalDB without any code changes.
