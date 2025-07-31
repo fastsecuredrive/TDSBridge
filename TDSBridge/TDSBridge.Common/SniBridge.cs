@@ -10,28 +10,56 @@ namespace TDSBridge.Common
         private object _operationLock = new object();
         private SNIHandle _nativeSni;
 
-        public void Initialize(out byte[] instanceName)
+        public void Initialize(out byte[] instanceName, System.Net.IPEndPoint sqlServerEndpoint = null)
         {
             var info = CreateConsumerInfo(false /*unused...*/);
             var spnBuffer = new byte[1][];
 
+            // Determine the server name to connect to
+            string serverName;
+            if (sqlServerEndpoint != null)
+            {
+                // For TCP/IP connections (including LocalDB with TCP enabled)
+                serverName = $"{sqlServerEndpoint.Address},{sqlServerEndpoint.Port}";
+            }
+            else
+            {
+                // Default to LocalDB - you can change this to your LocalDB instance
+                serverName = "(localdb)\\MSSQLLocalDB";
+                // Alternative formats:
+                // serverName = "localhost\\Brevium_2012";  // Original hardcoded instance
+                // serverName = "(localdb)\\v11.0";         // Version-specific LocalDB
+            }
+
             lock (_operationLock)
             {
-                NativeSni.SNIInitialize(); // Dunno about this...
+                Console.WriteLine($"Attempting to connect to: {serverName}");
+                
+                try
+                {
+                    NativeSni.SNIInitialize(); // Dunno about this...
 
-                _nativeSni = new SNIHandle(
-                    info,
-                    "localhost\\Brevium_2012",
-                    spnBuffer[0] /* used for integrated security - not used */,
-                    true,
-                    10000,
-                    out instanceName,
-                    false,
-                    true,
-                    false,
-                    SqlConnectionIPAddressPreference.IPv4First,
-                    null);
-                Console.WriteLine($"Got back instance name: {Encoding.ASCII.GetString(instanceName)}");
+                    _nativeSni = new SNIHandle(
+                        info,
+                        serverName,
+                        spnBuffer[0] /* used for integrated security - not used */,
+                        true,
+                        10000,
+                        out instanceName,
+                        false,
+                        true,
+                        false,
+                        SqlConnectionIPAddressPreference.IPv4First,
+                        null);
+                    Console.WriteLine($"Successfully connected to: {serverName}");
+                    Console.WriteLine($"Got back instance name: {Encoding.ASCII.GetString(instanceName)}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to connect to {serverName}: {ex.Message}");
+                    Console.WriteLine($"Exception details: {ex}");
+                    throw;
+                }
                 //NativeSni.EnableSsl(_nativeSni);
                 //var sslRetVal = NativeSni.SNIWaitForSSLHandshakeToComplete(_nativeSni, 30000, out uint protocolVersion);
                 //Console.WriteLine($"SSL Handshake done with version {protocolVersion} and ret val {sslRetVal}");

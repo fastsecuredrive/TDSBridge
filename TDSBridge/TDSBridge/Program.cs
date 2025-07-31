@@ -18,17 +18,26 @@ namespace TDSBridge
                 return;
             }
 
-            System.Net.IPHostEntry iphe = System.Net.Dns.GetHostEntry(args[1]);
+            // Check if user wants to use LocalDB
+            System.Net.IPEndPoint sqlEndpoint = null;
+            if (args[1].ToLower() != "localdb")
+            {
+                System.Net.IPHostEntry iphe = System.Net.Dns.GetHostEntry(args[1]);
+                sqlEndpoint = new System.Net.IPEndPoint(iphe.AddressList[0], int.Parse(args[2]));
+            }
+            // If args[1] is "localdb", sqlEndpoint stays null and SniBridge will use LocalDB
 
             BridgeAcceptor b = new BridgeAcceptor(
                 int.Parse(args[0]),
-                new System.Net.IPEndPoint(iphe.AddressList[0], int.Parse(args[2]))
+                sqlEndpoint
                 );
 
             b.TDSMessageReceived += new TDSMessageReceivedDelegate(b_TDSMessageReceived);
             b.TDSPacketReceived += new TDSPacketReceivedDelegate(b_TDSPacketReceived);
             b.ConnectionAccepted += new ConnectionAcceptedDelegate(b_ConnectionAccepted);
             b.ConnectionDisconnected += new ConnectionDisconnectedDelegate(b_ConnectionClosed);
+            b.BridgeException += new BridgeExceptionDelegate(b_BridgeException);
+            b.ListeningThreadException += new ListeningThreadExceptionDelegate(b_ListeningThreadException);
 
             b.Start();
 
@@ -46,6 +55,16 @@ namespace TDSBridge
         static void b_ConnectionAccepted(object sender, System.Net.Sockets.Socket sAccepted)
         {
             Console.WriteLine(FormatDateTime() + "|New connection from " + sAccepted.RemoteEndPoint);
+        }
+
+        static void b_BridgeException(object sender, BridgedConnection bc, ConnectionType ct, Exception exce)
+        {
+            Console.WriteLine(FormatDateTime() + "|Bridge Exception (" + ct + "): " + exce.ToString());
+        }
+
+        static void b_ListeningThreadException(object sender, System.Net.Sockets.Socket sListening, Exception exce)
+        {
+            Console.WriteLine(FormatDateTime() + "|Listening Thread Exception: " + exce.ToString());
         }
 
         static void b_TDSPacketReceived(object sender, BridgedConnection bc, Common.Packet.TDSPacket packet)
@@ -100,6 +119,15 @@ namespace TDSBridge
         static void Usage()
         {
             Console.WriteLine(System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + " <listen port> <sql server address> <sql server port>");
+            Console.WriteLine();
+            Console.WriteLine("Examples:");
+            Console.WriteLine("  " + System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + " 1533 127.0.0.1 1433");
+            Console.WriteLine("    - Listen on port 1533, forward to SQL Server on 127.0.0.1:1433");
+            Console.WriteLine();
+            Console.WriteLine("  " + System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + " 1533 localdb dummy");
+            Console.WriteLine("    - Listen on port 1533, forward to LocalDB (address/port ignored for LocalDB)");
+            Console.WriteLine();
+            Console.WriteLine("Note: When using 'localdb' as address, it will connect to (localdb)\\MSSQLLocalDB");
         }
     }
 }

@@ -134,7 +134,7 @@ namespace TDSBridge.Common
 
                                  sc.SniBridge = new SniBridge();
                                  byte[] instanceName;
-                                 sc.SniBridge.Initialize(out instanceName);
+                                 sc.SniBridge.Initialize(out instanceName, SQLServerEndpoint);
                                  //sc.BridgeSQLSocket = new Socket(SQLServerEndpoint.AddressFamily, SocketType.Stream, ProtocolType.IP);
                                  //sc.BridgeSQLSocket.Connect(SQLServerEndpoint);
 
