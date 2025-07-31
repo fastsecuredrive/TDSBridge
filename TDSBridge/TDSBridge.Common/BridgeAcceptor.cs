@@ -24,6 +24,7 @@ namespace TDSBridge.Common
         #region Members
         protected int _iAcceptPort;
         protected System.Net.IPEndPoint _ipeSQLServer;
+        protected string _localDbInstance;
 
         protected Socket sAccept;
         private Thread tAccept = null;
@@ -78,11 +79,13 @@ namespace TDSBridge.Common
         /// Instanzia un nuovo BridgeAcceptor ma non apre le porte finche' non viene invocato Start().
         /// </summary>
         /// <param name="AcceptPort">Porta TCP su cui attendere connessioni.</param>
-        /// <param name="SQLServerEndpoint">Indirizzo TCP/IP dell'instanza SQL Server.</param>
-        public BridgeAcceptor(int AcceptPort, System.Net.IPEndPoint SQLServerEndpoint)
+        /// <param name="SQLServerEndpoint">Indirizzo TCP/IP dell'instanza SQL Server (null for LocalDB).</param>
+        /// <param name="localDbInstance">Nome dell'istanza LocalDB (used when SQLServerEndpoint is null).</param>
+        public BridgeAcceptor(int AcceptPort, System.Net.IPEndPoint SQLServerEndpoint, string localDbInstance = null)
         {
             this._iAcceptPort = AcceptPort;
             this._ipeSQLServer = SQLServerEndpoint;
+            this._localDbInstance = localDbInstance;
         }
         #endregion
 
@@ -134,7 +137,7 @@ namespace TDSBridge.Common
 
                                  sc.SniBridge = new SniBridge();
                                  byte[] instanceName;
-                                 sc.SniBridge.Initialize(out instanceName, SQLServerEndpoint);
+                                 sc.SniBridge.Initialize(out instanceName, SQLServerEndpoint, _localDbInstance);
                                  //sc.BridgeSQLSocket = new Socket(SQLServerEndpoint.AddressFamily, SocketType.Stream, ProtocolType.IP);
                                  //sc.BridgeSQLSocket.Connect(SQLServerEndpoint);
 

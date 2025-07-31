@@ -10,7 +10,7 @@ namespace TDSBridge.Common
         private object _operationLock = new object();
         private SNIHandle _nativeSni;
 
-        public void Initialize(out byte[] instanceName, System.Net.IPEndPoint sqlServerEndpoint = null)
+        public void Initialize(out byte[] instanceName, System.Net.IPEndPoint sqlServerEndpoint = null, string localDbInstance = null)
         {
             var info = CreateConsumerInfo(false /*unused...*/);
             var spnBuffer = new byte[1][];
@@ -24,8 +24,9 @@ namespace TDSBridge.Common
             }
             else
             {
-                // Default to LocalDB - you can change this to your LocalDB instance
-                serverName = "(localdb)\\MSSQLLocalDB";
+                // Default to LocalDB - use provided instance name or default
+                string instanceToUse = localDbInstance ?? "MSSQLLocalDB";
+                serverName = $"(localdb)\\{instanceToUse}";
                 // Alternative formats:
                 // serverName = "localhost\\Brevium_2012";  // Original hardcoded instance
                 // serverName = "(localdb)\\v11.0";         // Version-specific LocalDB
